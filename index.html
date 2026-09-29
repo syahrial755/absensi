@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Presensi Kelas — QR Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<style>
+  :root{
+    --bg:#12141c;
+    --surface:#1a1d29;
+    --surface-2:#212537;
+    --border:#2a2f45;
+    --text:#e9e7df;
+    --text-dim:#9a9db2;
+    --accent:#e8a33d;
+    --accent-ink:#3a2205;
+    --good:#4fd1a5;
+    --good-ink:#08281f;
+    --bad:#e8654f;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1100px 600px at 85% -10%, #1e2438 0%, transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  header.top{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    gap:16px; flex-wrap:wrap; margin-bottom:26px;
+    border-bottom:1px solid var(--border); padding-bottom:18px;
+  }
+  header.top h1{
+    font-family:'Fraunces', serif; font-weight:600; font-size:2.1rem;
+    margin:0 0 4px; letter-spacing:.2px;
+  }
+  header.top p{margin:0; color:var(--text-dim); font-size:.92rem;}
+  .session-tag{
+    font-family:'IBM Plex Mono', monospace; font-size:.78rem; color:var(--accent);
+    background:rgba(232,163,61,.1); border:1px solid rgba(232,163,61,.35);
+    padding:6px 12px; border-radius:999px; white-space:nowrap;
+  }
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  @media (max-width:820px){ .grid{grid-template-columns:1fr;} }
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px 22px 22px;
+  }
+  .card h2{
+    font-family:'Fraunces', serif; font-weight:600; font-size:1.18rem; margin:0 0 4px;
+  }
+  .card .hint{color:var(--text-dim); font-size:.85rem; margin:0 0 16px;}
+  .qr-box{
+    background:#fff; border-radius:10px; padding:14px; width:200px; height:200px;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 14px;
+  }
+  .qr-box img, .qr-box canvas{ image-rendering:pixelated; }
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  button{
+    font-family:inherit; font-size:.88rem; font-weight:500; cursor:pointer;
+    border-radius:9px; padding:9px 16px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text); transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--accent);}
+  button:focus-visible, input:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  button.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600;}
+  button.primary:hover{filter:brightness(1.06);}
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  .link-row{text-align:center; margin-top:12px; font-size:.82rem;}
+  .link-row a{color:var(--accent); text-decoration:none;}
+  .link-row a:hover{text-decoration:underline;}
+  .field{display:flex; gap:8px; margin-bottom:14px;}
+  .field input{
+    flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:9px; font-family:'IBM Plex Mono', monospace; font-size:.92rem;
+  }
+  .mhs-preview{
+    display:flex; gap:14px; align-items:center; background:var(--surface-2);
+    border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:14px;
+  }
+  .mhs-preview .qr-mini{background:#fff; border-radius:6px; padding:6px; width:64px; height:64px; flex:none;
+    display:flex; align-items:center; justify-content:center;}
+  .mhs-preview .info b{display:block; font-size:.95rem;}
+  .mhs-preview .info span{color:var(--text-dim); font-size:.8rem;}
+  .scan-view{
+    position:relative; border-radius:10px; overflow:hidden; background:#000;
+    aspect-ratio:1/1; max-width:260px; margin:0 auto 14px; display:none;
+  }
+  .scan-view.active{display:block;}
+  .scan-view video{width:100%; height:100%; object-fit:cover;}
+  .viewfinder{
+    position:absolute; inset:14%; border:2px solid transparent; pointer-events:none;
+  }
+  .viewfinder::before, .viewfinder::after{content:''; position:absolute; width:26px; height:26px; border-color:var(--accent); border-style:solid;}
+  .viewfinder::before{top:0; left:0; border-width:3px 0 0 3px;}
+  .viewfinder::after{bottom:0; right:0; border-width:0 3px 3px 0;}
+  .status-line{
+    text-align:center; font-size:.85rem; min-height:1.2em; margin-top:2px;
+  }
+  .status-line.ok{color:var(--good);}
+  .status-line.err{color:var(--bad);}
+  .status-line.muted{color:var(--text-dim);}
+  table{width:100%; border-collapse:collapse; font-size:.88rem; margin-top:6px;}
+  thead th{
+    text-align:left; color:var(--text-dim); font-weight:500; font-size:.78rem;
+    padding:8px 10px; border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:9px 10px; border-bottom:1px solid var(--border);}
+  tbody tr:last-child td{border-bottom:none;}
+  .badge{padding:3px 10px; border-radius:999px; font-size:.76rem; font-weight:500; white-space:nowrap;}
+  .badge.hadir{background:rgba(79,209,165,.14); color:var(--good);}
+  .badge.belum{background:rgba(255,255,255,.06); color:var(--text-dim);}
+  .table-head-row{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .table-head-row input{
+    background:var(--bg); border:1px solid var(--border); color:var(--text);
+    padding:7px 10px; border-radius:8px; font-size:.85rem; width:180px;
+  }
+  .count-pill{font-size:.78rem; color:var(--text-dim); font-family:'IBM Plex Mono', monospace;}
+  .table-wrap{max-height:340px; overflow:auto;}
+  .empty-row td{text-align:center; color:var(--text-dim); padding:24px 10px;}
+  .full-span{grid-column:1/-1;}
+  .conn{
+    display:flex; align-items:center; gap:8px; font-size:.82rem; color:var(--text-dim);
+    margin-top:16px; padding-top:14px; border-top:1px solid var(--border);
+  }
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--text-dim); flex:none;}
+  .dot.on{background:var(--good);}
+  .dot.off{background:var(--bad);}
+  .conn a{color:var(--accent); text-decoration:none;}
+  .conn a:hover{text-decoration:underline;}
+
+  /* tampilan mahasiswa (saat scan sesi) */
+  .student-view{max-width:380px; margin:60px auto; text-align:center;}
+  .student-view .card{text-align:left;}
+  .student-view h1{font-family:'Fraunces',serif; font-size:1.6rem; margin:0 0 6px;}
+  .student-view p.sub{color:var(--text-dim); font-size:.9rem; margin:0 0 20px;}
+  .student-view input{
+    width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    padding:12px 14px; border-radius:9px; font-size:1rem; font-family:'IBM Plex Mono', monospace;
+    margin-bottom:12px; text-align:center; letter-spacing:1px;
+  }
+  .student-view button{width:100%; padding:12px; font-size:.95rem;}
+  .result-box{
+    margin-top:16px; padding:14px 16px; border-radius:10px; font-size:.9rem; display:none;
+  }
+  .result-box.show{display:block;}
+  .result-box.ok{background:rgba(79,209,165,.12); color:var(--good); border:1px solid rgba(79,209,165,.35);}
+  .result-box.err{background:rgba(232,101,79,.12); color:var(--bad); border:1px solid rgba(232,101,79,.35);}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<!-- ====== TAMPILAN MAHASISWA (dibuka lewat scan QR sesi) ====== -->
+<div id="studentView" class="student-view hidden">
+  <div class="card">
+    <h1>Konfirmasi Kehadiran</h1>
+    <p class="sub">Masukkan NIM untuk mencatat kehadiran pada sesi ini.</p>
+    <input id="siNim" type="text" inputmode="numeric" placeholder="NIM" autofocus>
+    <button class="primary" id="siSubmit">Konfirmasi Hadir</button>
+    <div id="siResult" class="result-box"></div>
+  </div>
+</div>
+
+<!-- ====== TAMPILAN DOSEN (dashboard utama) ====== -->
+<div id="dosenView" class="wrap hidden">
+  <header class="top">
+    <div>
+      <h1>Presensi Kelas</h1>
+      <p>Absensi mahasiswa lewat pindai kode QR</p>
+    </div>
+    <div class="session-tag" id="tglHariIni">—</div>
+  </header>
+
+  <div class="grid">
+
+    <!-- QR sesi -->
+    <section class="card">
+      <h2>Kode Sesi</h2>
+      <p class="hint">Tunjukkan ke kelas — mahasiswa memindai dari HP masing-masing.</p>
+      <div class="qr-box" id="qrSesi"></div>
+      <div class="status-line muted" id="sesiInfo">Sesi aktif · berlaku sampai diperbarui</div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button id="btnRefresh">Perbarui Data</button>
+        <button id="btnSesiBaru">Sesi Baru</button>
+        <button id="btnUnduhSesi">Unduh QR</button>
+      </div>
+    </section>
+
+    <!-- Buat kartu QR mahasiswa -->
+    <section class="card">
+      <h2>Kartu QR Mahasiswa</h2>
+      <p class="hint">Cetak sekali, dipakai berulang untuk presensi manual.</p>
+      <div class="field">
+        <input id="genNim" type="text" inputmode="numeric" placeholder="Masukkan NIM">
+        <button class="primary" id="btnGenerate">Buat</button>
+      </div>
+      <div id="genPreview" class="mhs-preview hidden">
+        <div class="qr-mini" id="genQrMini"></div>
+        <div class="info">
+          <b id="genNama">—</b>
+          <span id="genKelas">—</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button id="btnUnduhKartu" disabled>Unduh Kartu</button>
+      </div>
+      <div class="status-line muted" id="genStatus"></div>
+    </section>
+
+    <!-- Pindai kartu mahasiswa -->
+    <section class="card">
+      <h2>Pindai Kartu Mahasiswa</h2>
+      <p class="hint">Untuk pencatatan manual lewat kamera perangkat ini.</p>
+      <div class="scan-view" id="scanView">
+        <video id="scanVideo" playsinline muted></video>
+        <div class="viewfinder"></div>
+      </div>
+      <div class="btn-row">
+        <button class="primary" id="btnScan">Mulai Pindai</button>
+      </div>
+      <div class="status-line muted" id="scanStatus">Kamera belum aktif</div>
+    </section>
+
+    <!-- Daftar mahasiswa -->
+    <section class="card full-span">
+      <div class="table-head-row">
+        <h2 style="margin:0;">Daftar Mahasiswa</h2>
+        <input id="filterInput" type="text" placeholder="Cari NIM / nama…">
+        <span class="count-pill" id="countPill">0 dari 0 hadir</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>NIM</th><th>Nama</th><th>Kelas</th><th>Jurusan</th><th>Status</th></tr>
+          </thead>
+          <tbody id="tblBody">
+            <tr class="empty-row"><td colspan="5">Memuat data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="conn">
+        <span class="dot off" id="connDot"></span>
+        <span id="connText">Menghubungkan ke Google Sheets…</span>
+        <span style="flex:1"></span>
+        <a id="sheetLink" href="#" target="_blank" rel="noopener">Buka Sheet</a>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   KONFIGURASI
+   1. Deploy Code.gs sebagai Web App (lihat berkas Code.gs terpisah).
+   2. Tempel URL Web App di sini.
+   3. Tempel juga link Google Sheet-nya untuk tombol "Buka Sheet".
+===================================================================== */
+const CONFIG = {
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwLBIYM8qMpI-fQF3ECtFnQIGbdDZO6Eeg3t0eAW_jaezvEv9NdSvfBAmq9oSnlsvRd/exec',
+  SHEET_URL: 'https://docs.google.com/spreadsheets/d/1YDDFwyjZgKj0tt91gkttX5aBzWedZQ3D4f3BEw9Bkw8/edit?gid=221202869#gid=221202869'
+};
+
+const params = new URLSearchParams(location.search);
+const sesiParam = params.get('sesi');
+
+let mahasiswaData = [];
+let sesiId = null;
+let stream = null;
+let scanning = false;
+let lastScanNim = null;
+let lastScanAt = 0;
+
+function apiUrl(action, extra){
+  const u = new URL(CONFIG.APPS_SCRIPT_URL);
+  u.searchParams.set('action', action);
+  if (extra) Object.keys(extra).forEach(k => u.searchParams.set(k, extra[k]));
+  return u.toString();
+}
+
+async function apiCall(action, extra){
+  const res = await fetch(apiUrl(action, extra));
+  if (!res.ok) throw new Error('Gagal menghubungi server (' + res.status + ')');
+  return res.json();
+}
+
+/* ---------------------------------------------------------------------
+   TAMPILAN MAHASISWA — dibuka saat link berisi ?sesi=...
+--------------------------------------------------------------------- */
+function initStudentView(){
+  document.getElementById('studentView').classList.remove('hidden');
+  const nimInput = document.getElementById('siNim');
+  const btn = document.getElementById('siSubmit');
+  const box = document.getElementById('siResult');
+
+  async function kirim(){
+    const nim = nimInput.value.trim();
+    if (!nim){ nimInput.focus(); return; }
+    btn.disabled = true; btn.textContent = 'Mengirim…';
+    try{
+      const r = await apiCall('checkin', { nim });
+      box.className = 'result-box show ' + (r.ok ? 'ok' : 'err');
+      box.textContent = r.ok ? r.pesan : (r.pesan || 'Terjadi kesalahan');
+      if (r.ok) { nimInput.value=''; }
+    }catch(err){
+      box.className = 'result-box show err';
+      box.textContent = 'Tidak dapat terhubung ke server. Periksa koneksi internet.';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Konfirmasi Hadir';
+    }
+  }
+  btn.addEventListener('click', kirim);
+  nimInput.addEventListener('keydown', e => { if (e.key === 'Enter') kirim(); });
+}
+
+/* ---------------------------------------------------------------------
+   TAMPILAN DOSEN
+--------------------------------------------------------------------- */
+function initDosenView(){
+  document.getElementById('dosenView').classList.remove('hidden');
+  document.getElementById('tglHariIni').textContent =
+    new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  if (CONFIG.SHEET_URL && !CONFIG.SHEET_URL.startsWith('TEMPEL')){
+    document.getElementById('sheetLink').href = CONFIG.SHEET_URL;
+  }
+
+  buatSesiBaru();
+  muatData();
+
+  document.getElementById('btnRefresh').addEventListener('click', muatData);
+  document.getElementById('btnSesiBaru').addEventListener('click', buatSesiBaru);
+  document.getElementById('btnUnduhSesi').addEventListener('click', () => unduhQr('qrSesi', 'sesi-' + sesiId + '.png'));
+  document.getElementById('btnGenerate').addEventListener('click', generateKartu);
+  document.getElementById('btnUnduhKartu').addEventListener('click', () => {
+    const nim = document.getElementById('genNim').value.trim();
+    unduhQr('genQrMini', 'kartu-' + nim + '.png');
+  });
+  document.getElementById('btnScan').addEventListener('click', toggleScan);
+  document.getElementById('filterInput').addEventListener('input', renderTable);
+}
+
+function buatSesiBaru(){
+  sesiId = Date.now().toString(36).toUpperCase();
+  const base = location.href.split('?')[0];
+  const link = base + '?sesi=' + sesiId;
+  const box = document.getElementById('qrSesi');
+  box.innerHTML = '';
+  new QRCode(box, { text: link, width: 172, height: 172, colorDark:'#12141c', colorLight:'#ffffff' });
+  document.getElementById('sesiInfo').textContent = 'Kode sesi ' + sesiId + ' · dibuat ' +
+    new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+}
+
+async function muatData(){
+  const conn = document.getElementById('connDot');
+  const connText = document.getElementById('connText');
+  conn.className = 'dot'; connText.textContent = 'Menghubungkan ke Google Sheets…';
+  try{
+    const r = await apiCall('list');
+    if (!r.ok) throw new Error(r.pesan || 'Gagal memuat data');
+    mahasiswaData = r.data || [];
+    conn.className = 'dot on';
+    connText.textContent = 'Terhubung dengan Google Sheets';
+    renderTable();
+  }catch(err){
+    conn.className = 'dot off';
+    connText.textContent = 'Gagal terhubung — periksa URL Web App di CONFIG';
+    document.getElementById('tblBody').innerHTML =
+      '<tr class="empty-row"><td colspan="5">Belum dapat memuat data</td></tr>';
+  }
+}
+
+function renderTable(){
+  const q = document.getElementById('filterInput').value.trim().toLowerCase();
+  const body = document.getElementById('tblBody');
+  const rows = mahasiswaData.filter(m =>
+    !q || m.nim.toLowerCase().includes(q) || (m.nama || '').toLowerCase().includes(q)
+  );
+  if (!rows.length){
+    body.innerHTML = '<tr class="empty-row"><td colspan="5">Tidak ada data</td></tr>';
+  } else {
+    body.innerHTML = rows.map(m => `
+      <tr>
+        <td>${m.nim}</td><td>${m.nama}</td><td>${m.kelas || '—'}</td><td>${m.jurusan || '—'}</td>
+        <td><span class="badge ${m.status === 'Hadir' ? 'hadir' : 'belum'}">${m.status}</span></td>
+      </tr>`).join('');
+  }
+  const hadir = mahasiswaData.filter(m => m.status === 'Hadir').length;
+  document.getElementById('countPill').textContent = hadir + ' dari ' + mahasiswaData.length + ' hadir';
+}
+
+async function generateKartu(){
+  const nim = document.getElementById('genNim').value.trim();
+  const status = document.getElementById('genStatus');
+  const preview = document.getElementById('genPreview');
+  const dlBtn = document.getElementById('btnUnduhKartu');
+  if (!nim){ status.textContent = 'Masukkan NIM terlebih dahulu.'; status.className='status-line err'; return; }
+  status.textContent = 'Mencari data mahasiswa…'; status.className = 'status-line muted';
+  try{
+    const r = await apiCall('cari', { nim });
+    if (!r.ok){ status.textContent = r.pesan; status.className = 'status-line err'; preview.classList.add('hidden'); dlBtn.disabled = true; return; }
+    document.getElementById('genNama').textContent = r.nama;
+    document.getElementById('genKelas').textContent = r.kelas + ' · ' + r.jurusan;
+    const mini = document.getElementById('genQrMini');
+    mini.innerHTML = '';
+    new QRCode(mini, { text: 'MHS:' + r.nim, width: 52, height: 52, colorDark:'#12141c', colorLight:'#ffffff' });
+    preview.classList.remove('hidden');
+    dlBtn.disabled = false;
+    status.textContent = 'Kartu siap diunduh.'; status.className = 'status-line ok';
+  }catch(err){
+    status.textContent = 'Tidak dapat terhubung ke server.'; status.className = 'status-line err';
+  }
+}
+
+function unduhQr(containerId, filename){
+  const canvas = document.querySelector('#' + containerId + ' canvas');
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = filename;
+  a.click();
+}
+
+/* ---------------------------------------------------------------------
+   PINDAI KARTU (kamera)
+--------------------------------------------------------------------- */
+async function toggleScan(){
+  const btn = document.getElementById('btnScan');
+  const view = document.getElementById('scanView');
+  const status = document.getElementById('scanStatus');
+  if (scanning){
+    scanning = false;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    view.classList.remove('active');
+    btn.textContent = 'Mulai Pindai';
+    status.textContent = 'Kamera dihentikan';
+    status.className = 'status-line muted';
+    return;
+  }
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('scanVideo');
+    video.srcObject = stream;
+    await video.play();
+    view.classList.add('active');
+    btn.textContent = 'Hentikan';
+    status.textContent = 'Arahkan kartu ke kamera…';
+    status.className = 'status-line muted';
+    scanning = true;
+    requestAnimationFrame(scanLoop);
+  }catch(err){
+    status.textContent = 'Tidak dapat mengakses kamera.';
+    status.className = 'status-line err';
+  }
+}
+
+function scanLoop(){
+  if (!scanning) return;
+  const video = document.getElementById('scanVideo');
+  if (video.readyState === video.HAVE_ENOUGH_DATA){
+    const canvas = scanLoop._canvas || (scanLoop._canvas = document.createElement('canvas'));
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height);
+    if (code && code.data && code.data.startsWith('MHS:')){
+      const nim = code.data.slice(4);
+      const now = Date.now();
+      if (nim !== lastScanNim || now - lastScanAt > 4000){
+        lastScanNim = nim; lastScanAt = now;
+        prosesScan(nim);
+      }
+    }
+  }
+  requestAnimationFrame(scanLoop);
+}
+
+async function prosesScan(nim){
+  const status = document.getElementById('scanStatus');
+  status.textContent = 'Memproses ' + nim + '…';
+  status.className = 'status-line muted';
+  try{
+    const r = await apiCall('checkin', { nim });
+    status.textContent = r.ok ? r.pesan : (r.pesan || 'Gagal mencatat kehadiran');
+    status.className = 'status-line ' + (r.ok ? 'ok' : 'err');
+    if (r.ok) muatData();
+  }catch(err){
+    status.textContent = 'Tidak dapat terhubung ke server.';
+    status.className = 'status-line err';
+  }
+}
+
+/* ---------------------------------------------------------------------
+   START
+--------------------------------------------------------------------- */
+if (sesiParam) initStudentView();
+else initDosenView();
+</script>
+</body>
+</html>
